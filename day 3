@@ -1,0 +1,195 @@
+from datetime import datetime
+from pathlib import Path
+import time
+
+import pyautogui
+import pyperclip
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+
+
+WEATHER_URL = "https://wttr.in/Coimbatore?format=3"
+COMMENT = "Weather information collected for today's operations."
+
+pyautogui.PAUSE = 0.5
+pyautogui.FAILSAFE = True
+
+
+def open_app(app_name, wait_seconds):
+    """Open a Mac application using Spotlight."""
+
+    pyautogui.hotkey("command", "space")
+    time.sleep(1)
+
+    pyautogui.write(app_name, interval=0.05)
+    pyautogui.press("enter")
+
+    time.sleep(wait_seconds)
+
+
+def collect_weather_from_safari():
+    """Open Safari and copy the displayed weather information."""
+
+    open_app("Safari", 6)
+
+    # Select Safari's address bar.
+    pyautogui.hotkey("command", "l")
+
+    # Open the public weather page.
+    pyautogui.write(WEATHER_URL, interval=0.01)
+    pyautogui.press("enter")
+
+    time.sleep(10)
+
+    # Clear the clipboard before copying.
+    pyperclip.copy("")
+
+    # Select and copy the webpage text.
+    pyautogui.hotkey("command", "a")
+    pyautogui.hotkey("command", "c")
+
+    time.sleep(1)
+
+    weather_data = pyperclip.paste().strip().replace("\n", " ")
+
+    if not weather_data:
+        raise RuntimeError(
+            "No weather information was copied from Safari."
+        )
+
+    return weather_data
+
+
+def create_excel_report(excel_path, date_time_text, weather_data):
+    """Create an Excel-compatible report using openpyxl."""
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Daily Report"
+
+    # Add the heading row.
+    worksheet.append(
+        ["Date & Time", "Fetched Data", "Comment"]
+    )
+
+    # Add the automatically generated report row.
+    worksheet.append(
+        [date_time_text, weather_data, COMMENT]
+    )
+
+    # Format the heading row.
+    heading_fill = PatternFill(
+        fill_type="solid",
+        fgColor="B91C1C"
+    )
+
+    heading_font = Font(
+        color="FFFFFF",
+        bold=True
+    )
+
+    for cell in worksheet[1]:
+        cell.fill = heading_fill
+        cell.font = heading_font
+        cell.alignment = Alignment(horizontal="center")
+
+    # Adjust column widths.
+    worksheet.column_dimensions["A"].width = 24
+    worksheet.column_dimensions["B"].width = 40
+    worksheet.column_dimensions["C"].width = 50
+
+    # Wrap long text.
+    for row in worksheet.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(
+                vertical="center",
+                wrap_text=True
+            )
+
+    workbook.save(excel_path)
+
+
+def open_report_in_numbers(excel_path):
+    """Open the generated report using Apple Numbers."""
+
+    open_app("Numbers", 8)
+
+    # Open the Numbers file-selection window.
+    pyautogui.hotkey("command", "o")
+    time.sleep(3)
+
+    # Open the macOS Go to Folder window.
+    pyautogui.hotkey("command", "shift", "g")
+    time.sleep(1)
+
+    # Paste the complete path to the generated Excel file.
+    pyperclip.copy(str(excel_path))
+    pyautogui.hotkey("command", "v")
+    pyautogui.press("enter")
+
+    time.sleep(2)
+
+    # Open the selected file.
+    pyautogui.press("enter")
+    time.sleep(10)
+
+    # Dismiss a possible import-information message.
+    pyautogui.press("enter")
+    time.sleep(2)
+
+
+def main():
+    current_time = datetime.now()
+
+    date_time_text = current_time.strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    file_stamp = current_time.strftime(
+        "%Y-%m-%d_%H-%M-%S"
+    )
+
+    project_folder = Path(__file__).resolve().parent
+
+    excel_path = project_folder / (
+        f"daily_report_{file_stamp}.xlsx"
+    )
+
+    screenshot_path = project_folder / (
+        f"daily_report_{file_stamp}.png"
+    )
+
+    print("The automation starts in 5 seconds.")
+    print("Do not move the mouse or use the keyboard.")
+    print("Move the mouse to the top-left corner to stop it.")
+
+    time.sleep(5)
+
+    # Step 1: Collect information using Safari.
+    weather_data = collect_weather_from_safari()
+
+    print("Weather copied:", weather_data)
+
+    # Step 2: Create the spreadsheet file.
+    create_excel_report(
+        excel_path,
+        date_time_text,
+        weather_data
+    )
+
+    print("Spreadsheet created:", excel_path)
+
+    # Step 3: Display the report using Numbers.
+    open_report_in_numbers(excel_path)
+
+    # Step 4: Save a screenshot of the final spreadsheet.
+    pyautogui.moveTo(10, 10, duration=0.2)
+    pyautogui.screenshot(str(screenshot_path))
+
+    print("Automation completed successfully.")
+    print("Spreadsheet:", excel_path)
+    print("Screenshot:", screenshot_path)
+
+
+if __name__ == "__main__":
+    main()
