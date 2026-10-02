@@ -1,0 +1,91 @@
+"""Capture the first live Cricbuzz score with Playwright."""
+
+import argparse
+from pathlib import Path
+
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright
+
+
+CRICBUZZ_URL = "https://www.cricbuzz.com/"
+CHROME_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/153.0.0.0 Safari/537.36"
+)
+
+# Inspected on the Cricbuzz home page: live match cards are links inside
+# <main>, point to /live-cricket-scores/, and contain a live-status span.
+LIVE_CARD_SELECTOR = (
+    'main a[href*="/live-cricket-scores/"]:has(span.text-cbLive)'
+)
+
+
+def capture_score(headless: bool) -> None:
+    """Wait for a visible live score, print it, and save score.png."""
+    output_path = Path(__file__).resolve().parent / "score.png"
+
+    with sync_playwright() as playwright:
+        # The chromium channel uses the same modern Chromium build in both
+        # headed and headless modes, which keeps page behaviour consistent.
+        browser = playwright.chromium.launch(
+            channel="chromium",
+            headless=headless,
+        )
+        context = browser.new_context(
+            viewport={"width": 1440, "height": 1000},
+            user_agent=CHROME_USER_AGENT,
+            locale="en-IN",
+            timezone_id="Asia/Kolkata",
+        )
+        page = context.new_page()
+
+        try:
+            page.goto(
+                CRICBUZZ_URL,
+                wait_until="domcontentloaded",
+                timeout=60_000,
+            )
+
+            # This is an element-based wait, not a fixed sleep. It finishes as
+            # soon as a visible live score card arrives through JavaScript.
+            page.wait_for_selector(
+                LIVE_CARD_SELECTOR,
+                state="visible",
+                timeout=20_000,
+            )
+
+            live_card = page.locator(LIVE_CARD_SELECTOR).first
+            live_card.scroll_into_view_if_needed()
+            score_text = live_card.inner_text().strip()
+
+            print("\nLIVE CRICKET SCORE")
+            print("------------------")
+            print(score_text)
+
+            page.screenshot(path=str(output_path), full_page=False)
+            print(f"\nSaved screenshot: {output_path}")
+
+        except PlaywrightTimeoutError:
+            print("No live cricket match is available right now.")
+            page.screenshot(path=str(output_path), full_page=False)
+            print(f"Saved current page: {output_path}")
+        finally:
+            browser.close()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Capture a live cricket score from Cricbuzz."
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run without displaying the Chromium window.",
+    )
+    args = parser.parse_args()
+    capture_score(headless=args.headless)
+
+
+if __name__ == "__main__":
+    main()
