@@ -1,0 +1,204 @@
+  """AUREUM - a beginner FastAPI app with a premium rewards experience."""
+
+from fastapi import FastAPI, Path, Query
+from fastapi.responses import HTMLResponse
+
+
+app = FastAPI(
+    title="AUREUM Rewards API",
+    description="A beginner FastAPI assignment with a premium rewards theme.",
+    version="1.0.0",
+)
+
+
+def get_tier(points: int) -> tuple[str, int, str]:
+    """Return a member tier, the next goal and a color for the UI."""
+    if points >= 2500:
+        return "Obsidian", 5000, "#f0eee8"
+    if points >= 1000:
+        return "Platinum", 2500, "#a8b7ff"
+    if points >= 500:
+        return "Gold", 1000, "#d8ff4f"
+    return "Member", 500, "#ff885c"
+
+
+@app.get("/", tags=["Assignment"])
+def read_root() -> dict:
+    """Return the required welcome message as JSON."""
+    return {
+        "message": "Hello, FastAPI",
+        "app": "AUREUM",
+        "experience": "/experience",
+        "interactive_docs": "/docs",
+    }
+
+
+@app.get("/member/{name}", tags=["Assignment"])
+def read_member(
+    name: str = Path(min_length=2, max_length=30, description="Member name"),
+    points: int = Query(default=740, ge=0, le=9999, description="Reward points"),
+) -> dict:
+    """Use a path parameter and a query parameter to build a reward response."""
+    clean_name = " ".join(name.strip().split()).title()
+    tier, next_goal, color = get_tier(points)
+    return {
+        "member": clean_name,
+        "points": points,
+        "tier": tier,
+        "next_goal": next_goal,
+        "points_to_next_level": max(next_goal - points, 0),
+        "accent": color,
+        "message": f"Welcome to the {tier} circle, {clean_name}.",
+    }
+
+
+@app.get("/experience", response_class=HTMLResponse, tags=["Premium UI"])
+def premium_experience() -> HTMLResponse:
+    """Return a self-contained premium rewards interface."""
+    page = """
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>AUREUM - rewards, refined</title>
+      <style>
+        :root {
+          --ink:#f4f1eb; --muted:#8c8b8f; --line:rgba(255,255,255,.10);
+          --panel:#121214; --acid:#d8ff4f; --orange:#ff885c; --violet:#7e69ff;
+        }
+        * { box-sizing:border-box; }
+        html { scroll-behavior:smooth; }
+        body {
+          margin:0; min-height:100vh; color:var(--ink); background:#070708;
+          font-family:Inter,"SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+          overflow-x:hidden;
+        }
+        body:before {
+          content:""; position:fixed; inset:0; pointer-events:none;
+          background:radial-gradient(circle at 76% 5%,rgba(126,105,255,.20),transparent 31rem),
+            radial-gradient(circle at 5% 65%,rgba(216,255,79,.08),transparent 29rem);
+        }
+        .noise { position:fixed; inset:0; opacity:.035; pointer-events:none; z-index:5;
+          background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E"); }
+        .shell { position:relative; width:min(1160px,calc(100% - 40px)); margin:auto; padding:24px 0 60px; }
+        nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:72px; }
+        .brand { display:flex; align-items:center; gap:12px; font-size:14px; font-weight:850; letter-spacing:.15em; }
+        .mark { display:grid; place-items:center; width:42px; height:42px; border:1px solid var(--line);
+          border-radius:50%; background:linear-gradient(145deg,#27272b,#0f0f11); font-size:18px; box-shadow:inset 0 1px rgba(255,255,255,.08); }
+        .status { display:flex; align-items:center; gap:8px; padding:9px 13px; border:1px solid var(--line);
+          border-radius:100px; color:#b5b4b9; background:rgba(255,255,255,.03); font-size:11px; font-weight:750; letter-spacing:.09em; }
+        .status i { width:7px; height:7px; border-radius:50%; background:#69f6ad; box-shadow:0 0 16px #69f6ad; }
+        .hero { display:grid; grid-template-columns:1.18fr .82fr; gap:60px; align-items:center; min-height:590px; }
+        .eyebrow { display:flex; align-items:center; gap:12px; color:var(--acid); font-size:11px; font-weight:850; letter-spacing:.2em; text-transform:uppercase; }
+        .eyebrow:before { content:""; width:38px; height:1px; background:var(--acid); }
+        h1 { max-width:730px; margin:22px 0 24px; font-size:clamp(64px,8.6vw,126px); line-height:.78;
+          letter-spacing:-.085em; font-weight:850; }
+        h1 span { display:block; color:transparent; -webkit-text-stroke:1px rgba(255,255,255,.52); }
+        .intro { max-width:560px; color:#a3a2a8; font-size:17px; line-height:1.65; }
+        .actions { display:flex; gap:12px; margin-top:34px; }
+        button,.link-button { display:inline-flex; align-items:center; justify-content:center; min-height:52px; padding:0 22px;
+          border-radius:2px; font:inherit; font-size:12px; font-weight:850; letter-spacing:.11em; text-transform:uppercase;
+          text-decoration:none; cursor:pointer; transition:transform .18s ease,filter .18s ease; }
+        button { border:0; color:#09090a; background:var(--acid); }
+        .link-button { border:1px solid var(--line); color:#dddce0; background:rgba(255,255,255,.025); }
+        button:hover,.link-button:hover { transform:translateY(-2px); filter:brightness(1.07); }
+        .card-wrap { position:relative; perspective:1000px; }
+        .halo { position:absolute; width:340px; height:340px; top:8%; left:8%; border-radius:50%;
+          background:linear-gradient(135deg,var(--violet),var(--orange)); filter:blur(95px); opacity:.24; }
+        .member-card { position:relative; min-height:450px; padding:32px; overflow:hidden; border:1px solid rgba(255,255,255,.14);
+          border-radius:28px; background:linear-gradient(145deg,#1d1d21 0%,#0c0c0e 54%,#17121e 100%);
+          box-shadow:0 45px 100px rgba(0,0,0,.55),inset 0 1px rgba(255,255,255,.08); transform:rotateY(-5deg) rotateX(3deg); }
+        .member-card:after { content:"A"; position:absolute; right:-30px; bottom:-98px; color:rgba(255,255,255,.027);
+          font-size:330px; line-height:1; font-weight:950; }
+        .card-top { position:relative; z-index:1; display:flex; justify-content:space-between; align-items:center; }
+        .mini-brand { font-size:12px; font-weight:900; letter-spacing:.22em; }
+        .chip { width:42px; height:32px; border-radius:8px; background:linear-gradient(135deg,#e8d985,#a98c39); opacity:.85; }
+        .card-copy { position:absolute; z-index:1; left:32px; right:32px; bottom:32px; }
+        .card-copy small { color:#85858c; font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
+        .card-copy h2 { margin:8px 0 4px; font-size:36px; letter-spacing:-.05em; }
+        .tier-line { display:flex; align-items:center; justify-content:space-between; margin-top:24px; padding-top:20px; border-top:1px solid var(--line); }
+        .tier-line b { color:var(--acid); font-size:12px; letter-spacing:.12em; text-transform:uppercase; }
+        .tier-line strong { font-size:22px; }
+        .console { margin-top:92px; padding:30px; border:1px solid var(--line); border-radius:24px;
+          background:linear-gradient(145deg,rgba(24,24,27,.94),rgba(11,11,13,.94)); }
+        .console-head { display:flex; justify-content:space-between; gap:20px; align-items:flex-end; margin-bottom:24px; }
+        .console h3 { margin:0; font-size:30px; letter-spacing:-.04em; }
+        .console p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+        .form { display:grid; grid-template-columns:1.3fr .8fr auto; gap:10px; }
+        input { width:100%; min-height:52px; padding:0 16px; border:1px solid var(--line); border-radius:2px;
+          outline:0; color:white; background:#09090b; font:inherit; }
+        input:focus { border-color:rgba(216,255,79,.55); box-shadow:0 0 0 3px rgba(216,255,79,.08); }
+        .result { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:18px; }
+        .stat { padding:18px; border:1px solid var(--line); background:rgba(255,255,255,.022); }
+        .stat small { display:block; color:var(--muted); font-size:9px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; }
+        .stat strong { display:block; margin-top:8px; font-size:20px; }
+        .progress { height:4px; margin-top:12px; overflow:hidden; background:#29292d; }
+        .progress i { display:block; width:0; height:100%; background:var(--acid); transition:width .6s cubic-bezier(.2,.8,.2,1); }
+        .error { display:none; margin-top:14px; color:#ff8b9c; font-size:13px; }
+        footer { display:flex; justify-content:space-between; margin-top:80px; padding-top:20px; border-top:1px solid var(--line);
+          color:#636269; font-size:10px; letter-spacing:.12em; text-transform:uppercase; }
+        .spark { position:fixed; width:7px; height:7px; border-radius:50%; pointer-events:none; z-index:20; animation:burst .8s ease-out forwards; }
+        @keyframes burst { to { transform:translate(var(--x),var(--y)) scale(0); opacity:0; } }
+        @media(max-width:800px) {
+          .shell{width:min(100% - 24px,1160px)} nav{margin-bottom:38px}.hero{grid-template-columns:1fr;gap:42px}
+          h1{font-size:72px}.member-card{min-height:390px;transform:none}.console{margin-top:60px;padding:20px}
+          .form{grid-template-columns:1fr}.result{grid-template-columns:repeat(2,1fr)}footer{gap:18px;flex-direction:column}
+        }
+      </style>
+    </head>
+    <body>
+      <div class="noise"></div>
+      <main class="shell">
+        <nav><div class="brand"><span class="mark">A</span>AUREUM</div><div class="status"><i></i> API ONLINE</div></nav>
+        <section class="hero">
+          <div>
+            <div class="eyebrow">membership, reimagined</div>
+            <h1>OWN YOUR <span>REWARDS.</span></h1>
+            <p class="intro">A private circle where every point becomes progress. Enter your name, reveal your tier and watch your member status evolve in real time.</p>
+            <div class="actions"><a class="link-button" href="#console">Enter the vault</a><a class="link-button" href="/docs">Open API docs</a></div>
+          </div>
+          <div class="card-wrap"><div class="halo"></div><article class="member-card" id="memberCard">
+            <div class="card-top"><span class="mini-brand">AUREUM / 01</span><span class="chip"></span></div>
+            <div class="card-copy"><small>Private member</small><h2 id="cardName">YOUR NAME</h2>
+              <div class="tier-line"><b id="cardTier">Member circle</b><strong id="cardPoints">740</strong></div></div>
+          </article></div>
+        </section>
+        <section class="console" id="console">
+          <div class="console-head"><div><h3>Unlock your circle.</h3><p>This form calls the FastAPI path endpoint behind the scenes.</p></div></div>
+          <form class="form" id="memberForm"><input id="name" required minlength="2" maxlength="30" placeholder="Your name" value="Vicky">
+            <input id="points" required type="number" min="0" max="9999" value="740" placeholder="Reward points">
+            <button type="submit">Reveal status</button></form>
+          <div class="error" id="error">Please enter a valid name and points between 0 and 9999.</div>
+          <div class="result">
+            <div class="stat"><small>Member</small><strong id="resultName">Vicky</strong></div>
+            <div class="stat"><small>Tier</small><strong id="resultTier">Gold</strong></div>
+            <div class="stat"><small>Points</small><strong id="resultPoints">740</strong></div>
+            <div class="stat"><small>Next level</small><strong id="resultNext">260</strong><div class="progress"><i id="bar"></i></div></div>
+          </div>
+        </section>
+        <footer><span>AUREUM REWARDS API · FASTAPI</span><span>ROOT / · MEMBER /MEMBER/{NAME} · DOCS /DOCS</span></footer>
+      </main>
+      <script>
+        const form=document.getElementById('memberForm');
+        const ids=['Name','Tier','Points','Next'];
+        function sparks(){for(let i=0;i<22;i++){const s=document.createElement('i');s.className='spark';
+          s.style.left='50%';s.style.top='58%';s.style.background=i%2?'#d8ff4f':'#7e69ff';
+          s.style.setProperty('--x',(Math.random()*420-210)+'px');s.style.setProperty('--y',(Math.random()*260-130)+'px');
+          document.body.appendChild(s);setTimeout(()=>s.remove(),900);}}
+        async function reveal(event){event.preventDefault();const name=document.getElementById('name').value.trim();
+          const points=document.getElementById('points').value;const error=document.getElementById('error');
+          if(name.length<2||points<0||points>9999){error.style.display='block';return} error.style.display='none';
+          try{const response=await fetch(`/member/${encodeURIComponent(name)}?points=${points}`);if(!response.ok)throw new Error();
+            const data=await response.json();document.getElementById('cardName').textContent=data.member.toUpperCase();
+            document.getElementById('cardTier').textContent=data.tier+' circle';document.getElementById('cardPoints').textContent=data.points;
+            document.getElementById('resultName').textContent=data.member;document.getElementById('resultTier').textContent=data.tier;
+            document.getElementById('resultPoints').textContent=data.points;document.getElementById('resultNext').textContent=data.points_to_next_level;
+            document.documentElement.style.setProperty('--acid',data.accent);document.getElementById('bar').style.width=Math.min(data.points/data.next_goal*100,100)+'%';sparks();
+          }catch(_){error.textContent='The API could not be reached. Please try again.';error.style.display='block';}}
+        form.addEventListener('submit',reveal);form.dispatchEvent(new Event('submit',{cancelable:true}));
+      </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=page)
