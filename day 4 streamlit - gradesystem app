@@ -1,0 +1,239 @@
+"""GradeVerse — a premium, gamified Streamlit grade manager."""
+
+from html import escape
+
+import streamlit as st
+
+st.set_page_config(page_title="GradeVerse", page_icon="G", layout="wide", initial_sidebar_state="collapsed")
+
+
+def get_grade(mark: int) -> str:
+    """Return the same grade used in the original Python assignment."""
+    if mark >= 90:
+        return "A"
+    if mark >= 80:
+        return "B"
+    if mark >= 70:
+        return "C"
+    if mark >= 60:
+        return "D"
+    return "E"
+
+
+def rank_for_average(average: float) -> tuple[str, str]:
+    if average >= 90:
+        return "Diamond", "◆"
+    if average >= 80:
+        return "Platinum", "✦"
+    if average >= 70:
+        return "Gold", "●"
+    if average >= 60:
+        return "Silver", "◇"
+    return "Rookie", "○"
+
+
+def metric_card(label: str, value: str, note: str, color: str) -> str:
+    return f'''<div class="metric-card" style="--glow:{color}">
+        <div class="metric-top"><span>{label}</span><i></i></div>
+        <strong>{value}</strong><small>{note}</small></div>'''
+
+
+def badge(label: str, unlocked: bool, symbol: str) -> str:
+    state = "unlocked" if unlocked else "locked"
+    return f'<div class="badge {state}"><b>{symbol}</b><span>{escape(label)}</span></div>'
+
+
+if "students" not in st.session_state:
+    st.session_state.students = []
+
+if st.session_state.pop("celebrate", False):
+    st.balloons()
+
+notice = st.session_state.pop("notice", None)
+if notice:
+    st.toast(notice, icon="✅")
+
+st.markdown(
+    """
+    <style>
+        :root { --bg:#070708; --panel:#111114; --text:#f5f5f7; --muted:#96969f;
+            --line:rgba(255,255,255,.09); --lime:#c9ff36; --green:#24e88b;
+            --violet:#9d70ff; --pink:#ff547c; }
+        #MainMenu, footer, header { visibility:hidden; }
+        .stApp { color:var(--text); background:
+            radial-gradient(circle at 78% -8%,rgba(157,112,255,.17),transparent 28rem),
+            radial-gradient(circle at 15% 20%,rgba(36,232,139,.08),transparent 25rem),var(--bg);
+            font-family:Inter,"SF Pro Display",-apple-system,BlinkMacSystemFont,sans-serif; }
+        .block-container { max-width:1180px; padding:1.8rem 2.2rem 4rem; }
+        .topbar { display:flex; align-items:center; justify-content:space-between; padding:.35rem 0 1.5rem; }
+        .brand { display:flex; align-items:center; gap:.7rem; font-weight:850; letter-spacing:.08em; }
+        .brand-mark { display:grid; place-items:center; width:2.35rem; height:2.35rem; border-radius:50%;
+            color:#060607; background:var(--lime); font-weight:950; letter-spacing:-.08em;
+            box-shadow:0 0 28px rgba(201,255,54,.22); }
+        .live-pill { display:flex; align-items:center; gap:.45rem; padding:.45rem .72rem;
+            border:1px solid var(--line); border-radius:999px; color:#c8c8cd;
+            background:rgba(255,255,255,.035); font-size:.72rem; font-weight:700; letter-spacing:.07em; }
+        .live-pill i { width:.42rem; height:.42rem; border-radius:50%; background:var(--green); box-shadow:0 0 12px var(--green); }
+        .hero { position:relative; overflow:hidden; min-height:290px; padding:2.2rem 2.35rem;
+            border:1px solid var(--line); border-radius:28px;
+            background:linear-gradient(125deg,#17171c 0%,#111116 56%,#25194a 100%);
+            box-shadow:0 35px 90px rgba(0,0,0,.35); }
+        .hero:after { content:"G"; position:absolute; right:1.6rem; top:-3.4rem; color:rgba(255,255,255,.035);
+            font-size:21rem; font-weight:950; line-height:1; }
+        .hero-kicker { color:var(--lime); font-size:.72rem; font-weight:800; letter-spacing:.17em; text-transform:uppercase; }
+        .hero h1 { position:relative; z-index:1; max-width:700px; margin:.55rem 0 .6rem;
+            font-size:clamp(3rem,7vw,6rem); line-height:.88; letter-spacing:-.075em; }
+        .hero h1 em { color:transparent; font-style:normal; -webkit-text-stroke:1px rgba(255,255,255,.48); }
+        .hero p { position:relative; z-index:1; max-width:580px; margin:0; color:#aaaab3; line-height:1.65; }
+        .hero-chips { position:relative; z-index:1; display:flex; flex-wrap:wrap; gap:.55rem; margin-top:1.35rem; }
+        .hero-chips span { padding:.48rem .7rem; border:1px solid var(--line); border-radius:999px;
+            background:rgba(255,255,255,.045); font-size:.73rem; font-weight:650; }
+        .metric-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.8rem; margin:1rem 0; }
+        .metric-card { padding:1rem 1.1rem; border:1px solid var(--line); border-radius:18px; background:rgba(17,17,20,.88); }
+        .metric-top { display:flex; align-items:center; justify-content:space-between; color:var(--muted);
+            font-size:.68rem; font-weight:750; letter-spacing:.11em; text-transform:uppercase; }
+        .metric-top i { width:.48rem; height:.48rem; border-radius:50%; background:var(--glow); box-shadow:0 0 14px var(--glow); }
+        .metric-card strong { display:block; margin:.35rem 0 .08rem; color:var(--text); font-size:2rem; letter-spacing:-.04em; }
+        .metric-card small { color:#696971; }
+        .section-label { margin:.4rem 0 .8rem; color:var(--muted); font-size:.7rem; font-weight:800;
+            letter-spacing:.16em; text-transform:uppercase; }
+        [data-testid="stForm"], .game-card { padding:1.3rem; border:1px solid var(--line); border-radius:22px;
+            background:linear-gradient(145deg,rgba(23,23,27,.96),rgba(15,15,18,.96)); }
+        [data-testid="stForm"] { box-shadow:0 18px 45px rgba(0,0,0,.22); }
+        [data-testid="stForm"] label { color:#d7d7dc !important; font-weight:650 !important; }
+        [data-testid="stTextInputRootElement"], [data-testid="stNumberInputContainer"] {
+            border-color:var(--line)!important; background:#0c0c0e!important; }
+        [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input { color:#fff!important;
+            background:transparent!important; -webkit-text-fill-color:#fff!important; caret-color:var(--lime)!important; }
+        [data-testid="stNumberInputStepDown"], [data-testid="stNumberInputStepUp"] {
+            color:#fff!important; background:rgba(255,255,255,.05)!important; }
+        [data-testid="stFormSubmitButton"] button { width:100%; min-height:3.05rem; border:0; border-radius:13px;
+            color:#09090a; background:var(--lime); font-weight:850; box-shadow:0 12px 30px rgba(201,255,54,.12);
+            transition:transform .16s ease,filter .16s ease; }
+        [data-testid="stFormSubmitButton"] button:hover { color:#09090a; filter:brightness(1.07); transform:translateY(-1px); }
+        .game-card { min-height:100%; }
+        .rank-row { display:flex; align-items:center; gap:1rem; }
+        .rank-orb { display:grid; place-items:center; flex:0 0 4rem; height:4rem; border-radius:50%; color:#0a0a0b;
+            background:linear-gradient(145deg,var(--lime),var(--green)); font-size:1.55rem; box-shadow:0 0 38px rgba(36,232,139,.18); }
+        .rank-copy small { color:var(--muted); text-transform:uppercase; letter-spacing:.11em; font-weight:750; }
+        .rank-copy h3 { margin:.12rem 0 0; font-size:1.65rem; }
+        .progress-track { height:.55rem; margin:1.25rem 0 .5rem; overflow:hidden; border-radius:999px; background:#29292e; }
+        .progress-track i { display:block; height:100%; border-radius:inherit;
+            background:linear-gradient(90deg,var(--violet),var(--pink),var(--lime)); }
+        .progress-copy { display:flex; justify-content:space-between; color:var(--muted); font-size:.73rem; }
+        .badge-row { display:grid; grid-template-columns:repeat(3,1fr); gap:.55rem; margin-top:1rem; }
+        .badge { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:76px; gap:.25rem;
+            border:1px solid var(--line); border-radius:15px; background:#0e0e11; text-align:center; }
+        .badge b { color:var(--lime); font-size:1.05rem; }
+        .badge span { color:#bebec5; font-size:.67rem; font-weight:650; }
+        .badge.locked { opacity:.32; filter:grayscale(1); }
+        .feed-head { display:flex; align-items:flex-end; justify-content:space-between; margin:1.65rem 0 .75rem; }
+        .feed-head h2 { margin:0; font-size:1.55rem; letter-spacing:-.035em; }
+        .feed-head span { color:var(--muted); font-size:.77rem; }
+        .student-feed { display:grid; gap:.55rem; }
+        .student-row { display:grid; grid-template-columns:auto 1fr auto auto; align-items:center; gap:.8rem;
+            padding:.78rem .9rem; border:1px solid var(--line); border-radius:16px; background:rgba(17,17,20,.82); }
+        .avatar { display:grid; place-items:center; width:2.35rem; height:2.35rem; border-radius:12px; color:#0a0a0b;
+            background:linear-gradient(145deg,var(--violet),#c9b6ff); font-weight:900; }
+        .student-name b { display:block; color:#f3f3f5; font-size:.91rem; }
+        .student-name small { color:#777780; }
+        .score { font-size:1.15rem; font-weight:850; }
+        .score small { color:#777780; font-size:.65rem; }
+        .grade { display:grid; place-items:center; width:2.2rem; height:2.2rem; border:1px solid rgba(201,255,54,.28);
+            border-radius:50%; color:var(--lime); background:rgba(201,255,54,.07); font-weight:900; }
+        .empty-state { padding:2rem; border:1px dashed rgba(255,255,255,.14); border-radius:18px; color:var(--muted); text-align:center; }
+        [data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+        .stButton button { width:100%; border:1px solid var(--line); border-radius:12px; color:#bbb; background:#111114; }
+        .stButton button:hover { border-color:rgba(255,84,124,.45); color:#ff819d; }
+        .footer-note { margin-top:2rem; color:#606068; font-size:.72rem; text-align:center; letter-spacing:.05em; }
+        @media (max-width:760px) { .block-container{padding:1rem .9rem 3rem}.hero{min-height:auto;padding:1.6rem 1.25rem}
+            .hero h1{font-size:3.2rem}.metric-grid{grid-template-columns:repeat(2,1fr)}
+            .student-row{grid-template-columns:auto 1fr auto}.score{display:none} }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+students = st.session_state.students
+marks = [student["Mark"] for student in students]
+average = sum(marks) / len(marks) if marks else 0
+highest = max(marks) if marks else 0
+lowest = min(marks) if marks else 0
+rank, rank_symbol = rank_for_average(average)
+xp = sum(marks)
+level = 1 + xp // 300
+level_progress = xp % 300
+
+st.markdown(
+    """<div class="topbar"><div class="brand"><span class="brand-mark">G</span> GRADEVERSE</div>
+    <div class="live-pill"><i></i> LIVE CLASS</div></div>
+    <section class="hero"><div class="hero-kicker">Your learning universe</div>
+    <h1>Grades, but make it <em>legendary.</em></h1>
+    <p>Build your class roster, reveal every grade and level up the whole crew—one score at a time.</p>
+    <div class="hero-chips"><span>✦ Instant grading</span><span>◉ Live insights</span><span>⚡ XP rewards</span></div></section>""",
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    '<div class="metric-grid">'
+    + metric_card("Average", f"{average:.1f}", "class pulse", "#c9ff36")
+    + metric_card("Highest", str(highest), "personal best", "#24e88b")
+    + metric_card("Lowest", str(lowest), "growth point", "#ff547c")
+    + metric_card("Crew", str(len(students)), "students added", "#9d70ff") + "</div>",
+    unsafe_allow_html=True,
+)
+
+left, right = st.columns([1.05, 0.95], gap="large")
+with left:
+    st.markdown('<div class="section-label">Add to the roster</div>', unsafe_allow_html=True)
+    with st.form("student_form", clear_on_submit=True):
+        name = st.text_input("Student name", placeholder="Example: Priya")
+        mark = st.number_input("Mark", min_value=0, max_value=100, value=75, step=1)
+        submitted = st.form_submit_button("ADD STUDENT  →")
+        if submitted:
+            clean_name = name.strip()
+            if not clean_name:
+                st.error("Please enter the student's name.")
+            else:
+                grade = get_grade(int(mark))
+                st.session_state.students.append({"Name": clean_name, "Mark": int(mark), "Grade": grade})
+                st.session_state.notice = f"{clean_name} joined the GradeVerse with grade {grade}."
+                if grade == "A":
+                    st.session_state.celebrate = True
+                st.rerun()
+
+with right:
+    st.markdown('<div class="section-label">Class quest</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'''<div class="game-card"><div class="rank-row"><div class="rank-orb">{rank_symbol}</div>
+        <div class="rank-copy"><small>Current rank · Level {level}</small><h3>{rank} Crew</h3></div></div>
+        <div class="progress-track"><i style="width:{(level_progress / 300) * 100:.1f}%"></i></div>
+        <div class="progress-copy"><span>{level_progress} XP</span><span>300 XP to level up</span></div>
+        <div class="badge-row">{badge("First Drop", len(students) >= 1, "✦")}
+        {badge("Squad Five", len(students) >= 5, "◆")}{badge("A-List", any(m >= 90 for m in marks), "⚡")}</div></div>''',
+        unsafe_allow_html=True,
+    )
+
+st.markdown(
+    f'<div class="feed-head"><h2>Class activity</h2><span>{len(students)} member(s) · newest first</span></div>',
+    unsafe_allow_html=True,
+)
+if students:
+    rows = []
+    for student in reversed(students):
+        safe_name = escape(student["Name"])
+        initial = escape(student["Name"][0].upper())
+        rows.append(f'''<div class="student-row"><div class="avatar">{initial}</div>
+            <div class="student-name"><b>{safe_name}</b><small>Grade unlocked</small></div>
+            <div class="score">{student["Mark"]}<small>/100</small></div><div class="grade">{student["Grade"]}</div></div>''')
+    st.markdown('<div class="student-feed">' + "".join(rows) + "</div>", unsafe_allow_html=True)
+    with st.expander("Open assignment table"):
+        st.dataframe(students, column_order=("Name", "Mark", "Grade"), hide_index=True, width="stretch")
+    st.write("")
+    if st.button("Reset complete roster"):
+        st.session_state.students = []
+        st.rerun()
+else:
+    st.markdown('<div class="empty-state">Your roster is quiet. Add the first student to start the class quest.</div>', unsafe_allow_html=True)
+
+st.markdown('<div class="footer-note">GRADEVERSE · BUILT WITH PYTHON + STREAMLIT · SESSION POWERED</div>', unsafe_allow_html=True)
