@@ -1,0 +1,969 @@
+import json
+import os
+import re
+import tempfile
+import urllib.error
+import urllib.request
+
+import streamlit as st
+
+
+# ---------------------------------------
+# PAGE SETTINGS
+# ---------------------------------------
+st.set_page_config(
+    page_title="Venugopal Property Assistant",
+    page_icon="🏡",
+    layout="wide",
+)
+
+
+# ---------------------------------------
+# PROPERTY INFORMATION
+# Later, we can replace this with
+# Venugopal's real property information.
+# ---------------------------------------
+PROPERTIES = [
+    {
+        "id": 1,
+        "location": "RS Puram",
+        "type": "2 BHK Apartment",
+        "area": "1200 sq.ft",
+        "price_lakhs": 65,
+        "status": "Available",
+    },
+    {
+        "id": 2,
+        "location": "Saravanampatti",
+        "type": "3 BHK Apartment",
+        "area": "1500 sq.ft",
+        "price_lakhs": 82,
+        "status": "Available",
+    },
+    {
+        "id": 3,
+        "location": "Vadavalli",
+        "type": "Residential Plot",
+        "area": "2400 sq.ft",
+        "price_lakhs": 48,
+        "status": "Available",
+    },
+]
+
+
+# ---------------------------------------
+# FIND BUDGET FROM CUSTOMER QUESTION
+# Example: "My budget is 50 lakhs"
+# ---------------------------------------
+def find_budget(question):
+    pattern = (
+        r"(\d+(?:\.\d+)?)\s*"
+        r"(?:lakhs?|லட்சம்|லட்சங்கள்|லட்சத்தில்|லட்சத்திற்குள்|"
+        r"லட்சத்திற்கு|லட்சத்துக்குள்)"
+    )
+    match = re.search(pattern, question.lower())
+
+    if match:
+        return float(match.group(1))
+
+    return None
+
+
+# ---------------------------------------
+# FILTER PROPERTIES USING PYTHON
+# Python performs the price calculation.
+# ---------------------------------------
+def filter_properties(question):
+    question_lower = question.lower()
+    matches = [
+        property_item
+        for property_item in PROPERTIES
+        if property_item["status"] == "Available"
+    ]
+
+    budget = find_budget(question)
+
+    if budget is not None:
+        matches = [
+            property_item
+            for property_item in matches
+            if property_item["price_lakhs"] <= budget
+        ]
+
+    location_aliases = {
+        "RS Puram": ["rs puram", "ஆர்.எஸ். புரம்", "ஆர் எஸ் புரம்"],
+        "Saravanampatti": ["saravanampatti", "சரவணம்பட்டி"],
+        "Vadavalli": ["vadavalli", "வடவள்ளி"],
+    }
+
+    requested_locations = [
+        location
+        for location, aliases in location_aliases.items()
+        if any(alias in question_lower for alias in aliases)
+    ]
+
+    if requested_locations:
+        matches = [
+            property_item
+            for property_item in matches
+            if property_item["location"] in requested_locations
+        ]
+
+    plot_terms = ["plot", "குடியிருப்பு மனை", "மனை", "வீட்டு மனை"]
+    if any(term in question_lower for term in plot_terms):
+        matches = [
+            property_item
+            for property_item in matches
+            if "plot" in property_item["type"].lower()
+        ]
+
+    two_bedroom_terms = [
+        "2 bhk",
+        "2bhk",
+        "2 படுக்கையறை",
+        "இரண்டு படுக்கையறை",
+    ]
+    if any(term in question_lower for term in two_bedroom_terms):
+        matches = [
+            property_item
+            for property_item in matches
+            if "2 bhk" in property_item["type"].lower()
+        ]
+
+    three_bedroom_terms = [
+        "3 bhk",
+        "3bhk",
+        "3 படுக்கையறை",
+        "மூன்று படுக்கையறை",
+    ]
+    if any(term in question_lower for term in three_bedroom_terms):
+        matches = [
+            property_item
+            for property_item in matches
+            if "3 bhk" in property_item["type"].lower()
+        ]
+
+    return matches, budget
+
+
+# ---------------------------------------
+# LANGUAGE AND TAMIL RESPONSE HELPERS
+# Tamil property answers are formatted in Python so that the wording remains
+# clear and consistent even when the local language model is very small.
+# ---------------------------------------
+def is_tamil_question(question):
+    return bool(re.search(r"[\u0B80-\u0BFF]", question))
+
+
+def normalized_text(question):
+    return re.sub(r"[^a-z0-9\u0B80-\u0BFF\s]", "", question.lower()).strip()
+
+
+def detect_intent(question):
+    """Separate social conversation from actual property searches."""
+    text = normalized_text(question)
+
+    property_terms = [
+        "property", "properties", "house", "home", "apartment", "flat",
+        "plot", "land", "bhk", "budget", "lakh", "price", "buy",
+        "available", "location", "sqft", "square feet", "rs puram",
+        "saravanampatti", "vadavalli", "சொத்து", "வீடு", "குடியிருப்பு",
+        "மனை", "நிலம்", "விலை", "லட்ச", "வாங்க", "கிடைக்கும்",
+        "இடம்", "படுக்கையறை", "ஆர் எஸ் புரம்", "சரவணம்பட்டி", "வடவள்ளி",
+    ]
+
+    # A message such as "Hi, I need a house" is a property request rather
+    # than only a greeting, so property intent is checked first.
+    if any(term in text for term in property_terms):
+        return "property"
+
+    exact_greetings = {
+        "hi", "hello", "hey", "good morning", "good afternoon",
+        "good evening", "வணக்கம்", "ஹாய்", "ஹலோ", "காலை வணக்கம்",
+        "மதிய வணக்கம்", "மாலை வணக்கம்",
+    }
+    if text in exact_greetings:
+        return "greeting"
+
+    if any(
+        text.startswith(term)
+        for term in ["hi ", "hello ", "hey ", "ஹாய் ", "ஹலோ ", "வணக்கம் "]
+    ):
+        return "greeting"
+
+    if any(term in text for term in ["thank", "thanks", "நன்றி", "ரொம்ப நன்றி"]):
+        return "thanks"
+
+    if any(
+        term in text
+        for term in ["bye", "goodbye", "see you", "பிறகு பார்க்கலாம்", "வருகிறேன்"]
+    ):
+        return "goodbye"
+
+    if any(
+        term in text
+        for term in [
+            "who are you", "your name", "what can you do",
+            "நீங்கள் யார்", "உங்கள் பெயர்", "என்ன செய்ய முடியும்",
+        ]
+    ):
+        return "identity"
+
+    if text in {"help", "உதவி", "உதவி வேண்டும்"}:
+        return "help"
+
+    return "conversation"
+
+
+def social_response(intent, tamil):
+    responses = {
+        "greeting": {
+            True: (
+                "வணக்கம்! உங்களைச் சந்திப்பதில் மகிழ்ச்சி. நான் வேணுகோபாலின் "
+                "சொத்து ஆலோசனை உதவியாளர். வீடு, அடுக்குமாடிக் குடியிருப்பு "
+                "அல்லது மனை குறித்து என்ன தெரிந்துகொள்ள விரும்புகிறீர்கள்?"
+            ),
+            False: (
+                "Hello! Nice to meet you. I’m Venugopal’s property assistant. "
+                "Are you looking for a house, an apartment, or a residential plot?"
+            ),
+        },
+        "thanks": {
+            True: (
+                "மகிழ்ச்சி! உங்களுக்கு உதவியதில் சந்தோஷம். வேறு சொத்து பற்றிய "
+                "விவரம் வேண்டுமென்றால் எப்போது வேண்டுமானாலும் கேளுங்கள்."
+            ),
+            False: (
+                "You’re welcome! I’m glad I could help. Feel free to ask about "
+                "another property whenever you like."
+            ),
+        },
+        "goodbye": {
+            True: "நன்றி! மீண்டும் சந்திப்போம். உங்கள் சொத்துத் தேடல் சிறப்பாக அமைய வாழ்த்துகள்.",
+            False: "Thank you! See you again, and best wishes with your property search.",
+        },
+        "identity": {
+            True: (
+                "நான் வேணுகோபாலின் சொத்து ஆலோசனை உதவியாளர். கிடைக்கும் "
+                "சொத்துகள், விலை, இடம், பரப்பளவு மற்றும் உங்கள் விலை வரம்பிற்குப் "
+                "பொருத்தமான வாய்ப்புகள் பற்றித் தெரிவிக்க முடியும்."
+            ),
+            False: (
+                "I’m Venugopal’s property assistant. I can help you explore "
+                "available properties by budget, location, type, area, and price."
+            ),
+        },
+        "help": {
+            True: (
+                "நிச்சயமாக உதவுகிறேன். “50 லட்சத்திற்குள் என்ன சொத்து கிடைக்கும்?”, "
+                "“வடவள்ளியில் மனை உள்ளதா?” அல்லது “2 படுக்கையறை வீடு வேண்டும்” "
+                "என்று கேட்கலாம்."
+            ),
+            False: (
+                "Of course. Try asking: “What can I buy under 50 lakhs?”, "
+                "“Is there a plot in Vadavalli?”, or “I need a 2 BHK apartment.”"
+            ),
+        },
+    }
+    return responses[intent][tamil]
+
+
+def tamil_property_type(property_type):
+    translations = {
+        "2 BHK Apartment": "2 படுக்கையறைகள் கொண்ட அடுக்குமாடிக் குடியிருப்பு",
+        "3 BHK Apartment": "3 படுக்கையறைகள் கொண்ட அடுக்குமாடிக் குடியிருப்பு",
+        "Residential Plot": "குடியிருப்பு மனை",
+    }
+    return translations.get(property_type, property_type)
+
+
+def tamil_location(location):
+    translations = {
+        "RS Puram": "ஆர்.எஸ். புரம்",
+        "Saravanampatti": "சரவணம்பட்டி",
+        "Vadavalli": "வடவள்ளி",
+    }
+    return translations.get(location, location)
+
+
+def tamil_status(status):
+    return "விற்பனைக்குக் கிடைக்கிறது" if status == "Available" else status
+
+
+def tamil_area(area):
+    return area.replace("sq.ft", "சதுர அடி")
+
+
+def format_tamil_answer(matching_properties, budget):
+    if not matching_properties:
+        if budget is not None:
+            return (
+                f"உங்கள் ₹{budget:g} லட்சம் விலை வரம்பிற்குள், நீங்கள் கேட்ட "
+                "வகையிலான சொத்து தற்போது எதுவும் கிடைக்கவில்லை. புதிய "
+                "வாய்ப்புகளை அறிய வேணுகோபாலைத் தொடர்புகொள்ளலாம்."
+            )
+
+        return (
+            "நீங்கள் கேட்ட விவரங்களுக்குப் பொருத்தமான சொத்து தற்போது "
+            "கிடைக்கவில்லை. வேறு இடம், விலை வரம்பு அல்லது சொத்து வகையைக் "
+            "குறிப்பிட்டு மீண்டும் கேளுங்கள்."
+        )
+
+    if len(matching_properties) == 1:
+        if budget is not None:
+            introduction = (
+                f"உங்கள் ₹{budget:g} லட்சம் விலை வரம்பிற்குள் பொருந்தும் "
+                "சொத்து இதோ:"
+            )
+        else:
+            introduction = "உங்கள் தேவைக்குப் பொருந்தும் சொத்து இதோ:"
+    else:
+        if budget is not None:
+            introduction = (
+                f"உங்கள் ₹{budget:g} லட்சம் விலை வரம்பிற்குள் "
+                f"{len(matching_properties)} சொத்துகள் கிடைக்கின்றன:"
+            )
+        else:
+            introduction = (
+                f"உங்கள் தேவைக்குப் பொருந்தும் {len(matching_properties)} "
+                "சொத்துகள் கிடைக்கின்றன:"
+            )
+
+    property_sections = []
+    for index, property_item in enumerate(matching_properties, start=1):
+        property_sections.append(
+            "\n".join(
+                [
+                    f"**{index}. {tamil_location(property_item['location'])}**",
+                    f"- சொத்து வகை: {tamil_property_type(property_item['type'])}",
+                    f"- பரப்பளவு: {tamil_area(property_item['area'])}",
+                    f"- விலை: ₹{property_item['price_lakhs']} லட்சம்",
+                    f"- நிலவரம்: {tamil_status(property_item['status'])}",
+                ]
+            )
+        )
+
+    conclusion = (
+        "\n\nமேலும் விவரங்கள் அல்லது பார்வையிடும் நேரம் குறித்து அறிய "
+        "வேணுகோபாலைத் தொடர்புகொள்ளலாம்."
+    )
+    return introduction + "\n\n" + "\n\n".join(property_sections) + conclusion
+
+
+# ---------------------------------------
+# LOCAL SPEECH-TO-TEXT
+# The Whisper model runs on this Mac. Recorded audio is deleted immediately
+# after transcription and is never stored with the property data.
+# ---------------------------------------
+@st.cache_resource(show_spinner=False)
+def load_speech_model():
+    from faster_whisper import WhisperModel
+
+    return WhisperModel(
+        "small",
+        device="cpu",
+        compute_type="int8",
+    )
+
+
+def transcribe_audio(audio_file, language_code):
+    temporary_path = None
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            suffix=".wav",
+            delete=False,
+        ) as temporary_file:
+            temporary_file.write(audio_file.getvalue())
+            temporary_path = temporary_file.name
+
+        model = load_speech_model()
+        segments, _ = model.transcribe(
+            temporary_path,
+            language=language_code,
+            beam_size=5,
+            vad_filter=True,
+        )
+        transcript = " ".join(
+            segment.text.strip()
+            for segment in segments
+            if segment.text.strip()
+        )
+        return transcript.strip()
+
+    finally:
+        if temporary_path and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
+
+
+# ---------------------------------------
+# SEND QUESTION TO LOCAL OLLAMA MODEL
+# ---------------------------------------
+def call_qwen(prompt, tamil=False):
+    request_data = json.dumps(
+        {
+            "model": "qwen2.5:3b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.2
+            },
+        }
+    ).encode("utf-8")
+
+    request = urllib.request.Request(
+        "http://127.0.0.1:11434/api/generate",
+        data=request_data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            result = json.loads(response.read().decode("utf-8"))
+            return result["response"].strip()
+
+    except urllib.error.URLError:
+        if tamil:
+            return (
+                "உள்ளூர் செயற்கை நுண்ணறிவு சேவையுடன் தற்போது இணைய முடியவில்லை. "
+                "சிறிது நேரம் கழித்து மீண்டும் முயற்சி செய்யுங்கள்."
+            )
+        return "I could not connect to the local AI. Please try again shortly."
+
+    except Exception as error:
+        if tamil:
+            return "பதில் உருவாக்கும்போது சிக்கல் ஏற்பட்டது. மீண்டும் முயற்சி செய்யுங்கள்."
+        return f"I ran into an error while preparing the answer: {error}"
+
+
+def conversation_prompt(question, chat_history, tamil):
+    recent_messages = chat_history[-6:]
+    conversation = "\n".join(
+        f"{message['role']}: {message['content']}"
+        for message in recent_messages
+    )
+
+    if tamil:
+        language_instruction = """
+Reply in natural, contemporary Tamil that ordinary people can easily understand.
+Do not translate English sentence structures literally.
+Avoid unnecessary English words. Keep common real-estate terms such as 2 BHK
+only when they improve clarity. Use respectful, warm wording.
+"""
+    else:
+        language_instruction = "Reply in clear, friendly, natural English."
+
+    return f"""
+You are Venugopal's friendly and professional property assistant in Coimbatore.
+Speak like a helpful human, not like a form or a search engine.
+You may have brief, friendly small talk, but your main expertise is property.
+Do not invent property listings, prices, contact details, or availability.
+If the user asks an unrelated factual question, answer briefly when safe and
+gently explain that your main role is property assistance.
+Keep the response concise, normally two to four sentences.
+
+{language_instruction}
+
+Recent conversation:
+{conversation}
+
+Current customer message:
+{question}
+"""
+
+
+def ask_qwen(question, matching_properties, budget, chat_history):
+    tamil = is_tamil_question(question)
+    intent = detect_intent(question)
+
+    if intent in {"greeting", "thanks", "goodbye", "identity", "help"}:
+        return social_response(intent, tamil)
+
+    if intent == "conversation":
+        prompt = conversation_prompt(question, chat_history, tamil)
+        return call_qwen(prompt, tamil=tamil)
+
+    # From this point onward, the message is a genuine property request.
+    if tamil:
+        return format_tamil_answer(matching_properties, budget)
+
+    if not matching_properties:
+        if budget is not None:
+            return (
+                f"I couldn’t find an available property within ₹{budget:g} "
+                "lakhs that matches your request. Would you like to try a "
+                "different budget, location, or property type?"
+            )
+
+        return (
+            "I couldn’t find an available property matching that request. "
+            "Would you like to try a different location or property type?"
+        )
+
+    property_information = json.dumps(
+        matching_properties,
+        indent=2,
+        ensure_ascii=False,
+    )
+
+    prompt = f"""
+You are Venugopal's friendly and professional property assistant.
+Answer in natural English and speak like a helpful human.
+Python has already filtered the listings correctly.
+Use ONLY the matching property information below.
+Never invent a property, location, price, contact detail, or availability.
+Answer the customer's exact question first. Then present the matching details
+clearly. End with one useful follow-up question. Keep the response concise.
+
+Matching property information:
+{property_information}
+
+Customer question:
+{question}
+
+Include the location, property type, area, price, and availability for every
+property you recommend.
+"""
+    return call_qwen(prompt, tamil=False)
+
+
+# ---------------------------------------
+# APP DESIGN
+# ---------------------------------------
+st.markdown(
+    """
+    <style>
+        :root {
+            color-scheme: light;
+            --navy: #0B1739;
+            --blue: #155EEF;
+            --blue-soft: #EAF2FF;
+            --green: #087A55;
+            --ink: #101828;
+            --muted: #475467;
+            --line: #B9C3D0;
+            --page: #F4F7FB;
+            --white: #FFFFFF;
+        }
+
+        html, body, .stApp {
+            font-size: 17px;
+        }
+
+        .stApp {
+            background:
+                radial-gradient(
+                    circle at 90% 5%,
+                    rgba(21, 94, 239, 0.10),
+                    transparent 30rem
+                ),
+                var(--page);
+            color: var(--ink);
+        }
+
+        .block-container {
+            max-width: 1100px;
+            padding-top: 1.75rem;
+            padding-bottom: 8rem;
+        }
+
+        .stApp p,
+        .stApp li,
+        .stApp label,
+        .stApp span {
+            line-height: 1.65;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            color: #D6E4FF;
+            font-size: 0.8rem;
+            font-weight: 850;
+            letter-spacing: 0.14rem;
+        }
+
+        .brand::before {
+            content: "";
+            width: 0.65rem;
+            height: 0.65rem;
+            border-radius: 50%;
+            background: #5FF2B6;
+            box-shadow: 0 0 0 5px rgba(95, 242, 182, 0.16);
+        }
+
+        .hero {
+            padding: 2.35rem;
+            margin-bottom: 1.25rem;
+            border: 1px solid #26355F;
+            border-radius: 22px;
+            background:
+                linear-gradient(
+                    135deg,
+                    #142755,
+                    #071127
+                );
+            box-shadow: 0 18px 55px rgba(11, 23, 57, 0.16);
+        }
+
+        .hero h1 {
+            margin: 0.65rem 0 0.7rem;
+            color: #FFFFFF !important;
+            font-size: clamp(2.35rem, 5vw, 3.8rem);
+            line-height: 1.04;
+            letter-spacing: -0.055em;
+        }
+
+        .hero p {
+            max-width: 720px;
+            margin: 0;
+            color: #E5ECF8 !important;
+            font-size: 1.05rem;
+            line-height: 1.75;
+        }
+
+        .trust-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            margin-top: 1.3rem;
+        }
+
+        .trust-row span {
+            padding: 0.42rem 0.7rem;
+            border: 1px solid #52658F;
+            border-radius: 999px;
+            color: #FFFFFF !important;
+            background: rgba(255, 255, 255, 0.07);
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        [data-testid="stChatMessage"] {
+            margin-bottom: 0.8rem;
+            padding: 1rem 1.1rem;
+            border: 1.5px solid var(--line);
+            border-radius: 16px;
+            background: var(--white);
+            box-shadow: 0 6px 22px rgba(16, 24, 40, 0.06);
+        }
+
+        [data-testid="stChatMessage"] p,
+        [data-testid="stChatMessage"] li,
+        [data-testid="stChatMessage"] span {
+            color: var(--ink) !important;
+            font-size: 1rem !important;
+            line-height: 1.75 !important;
+        }
+
+        [data-testid="stChatMessageAvatarUser"] {
+            background: var(--navy) !important;
+        }
+
+        [data-testid="stChatMessageAvatarAssistant"] {
+            background: var(--blue) !important;
+        }
+
+        [data-testid="stBottomBlockContainer"] {
+            background: rgba(244, 247, 251, 0.96) !important;
+            backdrop-filter: blur(10px);
+        }
+
+        [data-testid="stChatInput"] {
+            min-height: 58px;
+            border: 2px solid #667085 !important;
+            border-radius: 14px !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 8px 28px rgba(16, 24, 40, 0.12);
+        }
+
+        [data-testid="stChatInput"]:focus-within {
+            border-color: var(--blue) !important;
+            box-shadow: 0 0 0 4px rgba(21, 94, 239, 0.20) !important;
+        }
+
+        [data-testid="stChatInput"] textarea {
+            color: #101828 !important;
+            background: #FFFFFF !important;
+            -webkit-text-fill-color: #101828 !important;
+            caret-color: var(--blue) !important;
+            font-size: 1rem !important;
+        }
+
+        [data-testid="stChatInput"] textarea::placeholder {
+            color: #475467 !important;
+            opacity: 1 !important;
+        }
+
+        [data-testid="stChatInputSubmitButton"] {
+            min-width: 44px !important;
+            min-height: 44px !important;
+            color: #FFFFFF !important;
+            background: var(--blue) !important;
+            border-radius: 10px !important;
+        }
+
+        [data-testid="stSidebar"] {
+            background: var(--navy) !important;
+            border-right: 1px solid #26355F;
+        }
+
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] label {
+            color: #FFFFFF !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+            color: #CFD8EA !important;
+            font-size: 0.9rem !important;
+        }
+
+        .property-card {
+            padding: 1rem 1.05rem;
+            margin-bottom: 0.75rem;
+            border: 1px solid #52658F;
+            border-radius: 12px;
+            color: #F7F9FC;
+            background: #142755;
+            line-height: 1.7;
+        }
+
+        .property-card strong {
+            display: block;
+            margin-bottom: 0.15rem;
+            color: #8EC5FF;
+            font-size: 1.05rem;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stAlert"] {
+            border: 1px solid #68D6AE;
+            background: #103D35 !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stAlert"] p {
+            color: #E9FFF7 !important;
+        }
+
+        button, [role="button"], textarea {
+            outline-offset: 3px;
+        }
+
+        button:focus-visible,
+        [role="button"]:focus-visible,
+        textarea:focus-visible {
+            outline: 3px solid #FDB022 !important;
+        }
+
+        .access-note {
+            margin: 0.5rem 0 1.25rem;
+            padding: 0.85rem 1rem;
+            border-left: 4px solid var(--green);
+            color: #344054;
+            background: #ECFDF3;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        [data-testid="stChatInputAudioButton"] {
+            min-width: 44px !important;
+            min-height: 44px !important;
+            color: var(--blue) !important;
+            border-radius: 10px !important;
+        }
+
+        @media (max-width: 760px) {
+            .block-container {
+                padding: 1rem 0.85rem 7rem;
+            }
+
+            .hero {
+                padding: 1.5rem 1.2rem;
+            }
+
+            .hero h1 {
+                font-size: 2.25rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                transition: none !important;
+                animation: none !important;
+            }
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ---------------------------------------
+# HEADER
+# ---------------------------------------
+st.markdown(
+    """
+    <div class="hero">
+        <div class="brand">VENUGOPAL REALTY · AI ASSISTANT</div>
+        <h1>Find your next property.</h1>
+        <p>
+            Ask about available properties, locations, budgets,
+            apartment sizes and residential plots in Coimbatore.
+            Powered locally by Ollama and Qwen 2.5.
+        </p>
+        <div class="trust-row">
+            <span>✓ Verified property data</span>
+            <span>✓ Tamil + English</span>
+            <span>✓ Private local AI</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    """
+    <div class="access-note">
+        <strong>How to use:</strong> Type your budget, preferred location,
+        or property type below. Prices are filtered by Python before the AI
+        writes its response.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+# ---------------------------------------
+# SIDEBAR PROPERTY LIST
+# ---------------------------------------
+with st.sidebar:
+    st.title("Available Properties")
+    st.caption("Current sample property catalogue")
+
+    for property_item in PROPERTIES:
+        st.markdown(
+            f"""
+            <div class="property-card">
+                <strong>{property_item["location"]}</strong><br>
+                {property_item["type"]}<br>
+                {property_item["area"]}<br>
+                ₹{property_item["price_lakhs"]} lakhs
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.info(
+        "The sample data can later be replaced with "
+        "Venugopal's real property information."
+    )
+
+
+# ---------------------------------------
+# CHAT HISTORY
+# ---------------------------------------
+welcome_message = (
+    "வணக்கம்! நான் வேணுகோபாலின் சொத்து ஆலோசனை உதவியாளர். "
+    "உங்கள் விலை வரம்பு, விருப்பமான இடம் அல்லது நீங்கள் தேடும் "
+    "சொத்து வகை பற்றிக் கேளுங்கள்."
+)
+
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": welcome_message,
+        }
+    ]
+elif (
+    st.session_state.messages
+    and st.session_state.messages[0]["role"] == "assistant"
+    and st.session_state.messages[0]["content"].startswith("வணக்கம்!")
+):
+    st.session_state.messages[0]["content"] = welcome_message
+
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+
+# ---------------------------------------
+# CUSTOMER CHAT
+# ---------------------------------------
+chat_submission = st.chat_input(
+    "தட்டச்சு செய்யவும் அல்லது மைக்கை அழுத்திப் பேசவும்",
+    accept_audio=True,
+    audio_sample_rate=16000,
+    submit_mode="disable",
+)
+
+typed_question = ""
+recorded_audio = None
+voice_question = None
+
+if chat_submission:
+    typed_question = chat_submission.text.strip()
+    recorded_audio = chat_submission.audio
+
+if recorded_audio:
+    try:
+        with st.spinner("உங்கள் பேச்சு எழுத்தாக மாற்றப்படுகிறது..."):
+            # None lets Whisper automatically detect Tamil or English.
+            voice_question = transcribe_audio(recorded_audio, None)
+
+        if voice_question:
+            st.success(f"நீங்கள் கூறியது: {voice_question}")
+        else:
+            st.warning(
+                "குரல் தெளிவாகப் பதிவாகவில்லை. மீண்டும் முயற்சி செய்யுங்கள்."
+            )
+
+    except Exception as error:
+        st.error(
+            "குரலை எழுத்தாக மாற்ற முடியவில்லை. மீண்டும் முயற்சி செய்யுங்கள். "
+            f"விவரம்: {error}"
+        )
+
+customer_question = " ".join(
+    part for part in [typed_question, voice_question] if part
+).strip()
+
+if customer_question:
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": customer_question,
+        }
+    )
+
+    with st.chat_message("user"):
+        st.markdown(customer_question)
+
+    matching_properties, customer_budget = filter_properties(
+        customer_question
+    )
+
+    with st.chat_message("assistant"):
+        with st.spinner("Searching available properties..."):
+            answer = ask_qwen(
+                customer_question,
+                matching_properties,
+                customer_budget,
+                st.session_state.messages,
+            )
+
+        st.markdown(answer)
+
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": answer,
+        }
+    )
