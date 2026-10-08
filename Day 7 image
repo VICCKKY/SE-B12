@@ -1,0 +1,60 @@
+{
+  "task": "Edit the supplied split-screen campaign image",
+  "reference_image": "Use the existing MANNOLI time-travel image as the edit target",
+  "concept": "Ancient Tamil clay craftsmanship inspires contemporary cow-dung art and decor",
+  "preserve": [
+    "Vertical past-versus-present split-screen",
+    "Same young Tamil creator's face, hairstyle and clothing on both sides",
+    "Ancient craft courtyard on the left",
+    "Modern design studio on the right",
+    "Subtle glowing time-travel seam",
+    "Warm cinematic lighting",
+    "Existing finished mustard-yellow Ganesha plaque and both silver elephant-face fittings",
+    "Headline: காலம் தாண்டி. நம் ஸ்டைலில்.",
+    "Hashtag: #GenZTamilCulture",
+    "Campaign line: உன் மரபு. உன் ரீமிக்ஸ்.",
+    "Brand wordmark: MANNOLI"
+  ],
+  "left_side": {
+    "action": "Keep the ancient artisan visibly shaping a wet clay pot while the young time traveler observes",
+    "material": "Natural clay-rich earth mixed with water into workable pottery clay; do not depict dry sand alone",
+    "exact_label": "அன்று: களிமண்ணில் கைவினை.",
+    "placement": "Place the label clearly within the left half without covering faces or hands"
+  },
+  "right_side": {
+    "replace_action": "Replace the young creator's pencil-sketching action with hands-on making",
+    "action": "Show the same creator wearing close-fitting work gloves and pressing a prepared cow-dung-based mixture into a small decorative relief mould",
+    "visible_material": "A shallow bowl of earthy brown, visibly fibrous cow-dung-based craft mixture beside the mould; a matching partially formed relief must make the material-to-object transformation clear",
+    "finished_product": "Keep the existing reference plaque upright beside the making activity, with its front and both fittings visible",
+    "exact_label": "இன்று: மாட்டுச்சாணத்தில் புதிய கலை.",
+    "exact_supporting_copy": "மாட்டுச்சாணத்தால் உருவாக்கப்படும் சிலைகள் மற்றும் அலங்காரப் பொருட்கள்.",
+    "placement": "Keep both lines readable within the right half; do not place them across the ancient scene"
+  },
+  "footer": {
+    "layout": "Expand the clean cream footer as needed; retain the hashtag and brand, and add a separate readable contact row",
+    "exact_contact_heading": "ஆர்டர்கள் மற்றும் விவரங்களுக்கு தொடர்புகொள்ளுங்கள்",
+    "exact_phone": "தொலைபேசி: 88 076 24 01 3",
+    "exact_email": "மின்னஞ்சல்: Vaibhav229476@gmail.com"
+  },
+  "constraints": [
+    "Make cow dung explicit through both the right-side making activity and Tamil copy",
+    "Do not imply the ancient artisan uses cow dung",
+    "Do not change the finished reference product's design or invent additional products for sale",
+    "Treat time travel as creative fiction",
+    "Do not invent material ratios, herb names, manufacturing instructions or health and sustainability claims",
+    "Use only the specified text; no extra slogans or background writing",
+    "Preserve all phone digits and the email exactly",
+    "Ensure correct Tamil lettering, realistic hands and readable mobile typography",
+    "Do not cover faces, working hands or the product with text"
+  ],
+  "output": {
+    "format": "One finished portrait 4:5 campaign image",
+    "visual_priority": [
+      "Ancient clay making versus modern cow-dung making",
+      "Same creator connecting both eras",
+      "Recognizable finished product",
+      "Headline and cultural hashtag",
+      "Readable contact details"
+    ]
+  }
+}[S] Situation & Role
