@@ -1,0 +1,66 @@
+{
+  "_note": "Phrases the agent can use word-for-word. Written for the ear. Have a native speaker of each language listen once before going live.",
+  "default": "ta",
+  "languages": {
+    "ta": {
+      "name": "Tamil",
+      "style": "Casual Coimbatore Tamil mixed with common English words (order, price, delivery). Respectful 'neenga'.",
+      "greeting": "வணக்கம், மண்ணொலி. நான் மண்ணொலியோட AI உதவியாளர் மலர். இந்த call தரத்துக்காக record ஆகலாம். நீங்க ஆங்கிலம், இந்தி, மலையாளம், கன்னடம், தெலுங்குலயும் பேசலாம். உங்களுக்கு எப்படி உதவலாம்?",
+      "dont_know": "இந்த விவரம் இப்போ என்கிட்ட இல்லை. எங்க team உங்களுக்கு திரும்ப call பண்ணி சொல்லுவாங்க.",
+      "transfer": "ஒரு நிமிஷம், எங்க team-கிட்ட connect பண்றேன்.",
+      "callback_taken": "சரி, உங்க விவரம் note பண்ணிட்டேன். எங்க team உங்களுக்கு call பண்ணுவாங்க.",
+      "am_i_ai": "ஆமா, நான் மண்ணொலியோட AI உதவியாளர். வேணும்னா ஒரு ஆள்கிட்ட பேச ஏற்பாடு பண்றேன்.",
+      "closing": "Call பண்ணதுக்கு நன்றி. மண்ணொலி சார்பா வாழ்த்துக்கள்!"
+    },
+    "en": {
+      "name": "English",
+      "style": "Simple Indian English. Short sentences.",
+      "greeting": "Hello, this is Mannoli. I'm Malar, Mannoli's AI assistant. This call may be recorded for quality. How can I help you?",
+      "dont_know": "I don't have that detail right now. Our team will call you back with the answer.",
+      "transfer": "One moment, I'll connect you to our team.",
+      "callback_taken": "Okay, I've noted your details. Our team will call you back.",
+      "am_i_ai": "Yes, I'm Mannoli's AI assistant. If you like, I can arrange for a person to talk to you.",
+      "closing": "Thank you for calling Mannoli. Have a good day!"
+    },
+    "hi": {
+      "name": "Hindi",
+      "style": "Simple everyday Hindi, Hinglish words are fine (order, price, delivery). Use 'aap'.",
+      "greeting": "नमस्ते, मण्णोली में आपका स्वागत है। मैं मण्णोली की AI असिस्टेंट मलर हूँ। यह कॉल क्वालिटी के लिए रिकॉर्ड हो सकती है। बताइए, मैं आपकी क्या मदद करूँ?",
+      "dont_know": "यह जानकारी अभी मेरे पास नहीं है। हमारी टीम आपको वापस कॉल करके बताएगी।",
+      "transfer": "एक मिनट, मैं आपको हमारी टीम से जोड़ती हूँ।",
+      "callback_taken": "ठीक है, मैंने आपकी जानकारी नोट कर ली है। हमारी टीम आपको कॉल करेगी।",
+      "am_i_ai": "जी हाँ, मैं मण्णोली की AI असिस्टेंट हूँ। आप चाहें तो मैं किसी व्यक्ति से बात करवा सकती हूँ।",
+      "closing": "मण्णोली को कॉल करने के लिए धन्यवाद। आपका दिन शुभ हो!"
+    },
+    "ml": {
+      "name": "Malayalam",
+      "style": "Polite everyday Malayalam. Use 'ningal' / 'saar' / 'madam' naturally.",
+      "greeting": "നമസ്കാരം, മണ്ണൊലി. ഞാൻ മണ്ണൊലിയുടെ AI അസിസ്റ്റന്റ് മലർ ആണ്. ഈ കോൾ ഗുണനിലവാരത്തിനായി റെക്കോർഡ് ചെയ്യപ്പെട്ടേക്കാം. ഞാൻ എങ്ങനെ സഹായിക്കണം?",
+      "dont_know": "ആ വിവരം ഇപ്പോൾ എന്റെ കയ്യിൽ ഇല്ല. ഞങ്ങളുടെ ടീം നിങ്ങളെ തിരിച്ചു വിളിച്ച് പറയും.",
+      "transfer": "ഒരു നിമിഷം, ഞങ്ങളുടെ ടീമുമായി കണക്ട് ചെയ്യാം.",
+      "callback_taken": "ശരി, നിങ്ങളുടെ വിവരങ്ങൾ ഞാൻ എഴുതിയെടുത്തു. ഞങ്ങളുടെ ടീം നിങ്ങളെ വിളിക്കും.",
+      "am_i_ai": "അതെ, ഞാൻ മണ്ണൊലിയുടെ AI അസിസ്റ്റന്റ് ആണ്. വേണമെങ്കിൽ ഒരു ആളുമായി സംസാരിക്കാൻ ഏർപ്പാട് ചെയ്യാം.",
+      "closing": "മണ്ണൊലിയെ വിളിച്ചതിന് നന്ദി. നല്ലൊരു ദിവസം ആശംസിക്കുന്നു!"
+    },
+    "kn": {
+      "name": "Kannada",
+      "style": "Polite Bengaluru Kannada; common English words are fine. Use 'neevu'.",
+      "greeting": "ನಮಸ್ಕಾರ, ಮಣ್ಣೊಲಿ. ನಾನು ಮಣ್ಣೊಲಿಯ AI ಸಹಾಯಕಿ ಮಲರ್. ಈ ಕರೆ ಗುಣಮಟ್ಟಕ್ಕಾಗಿ ರೆಕಾರ್ಡ್ ಆಗಬಹುದು. ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
+      "dont_know": "ಆ ಮಾಹಿತಿ ಈಗ ನನ್ನ ಬಳಿ ಇಲ್ಲ. ನಮ್ಮ ತಂಡ ನಿಮಗೆ ಮತ್ತೆ ಕರೆ ಮಾಡಿ ತಿಳಿಸುತ್ತದೆ.",
+      "transfer": "ಒಂದು ನಿಮಿಷ, ನಮ್ಮ ತಂಡಕ್ಕೆ ಕನೆಕ್ಟ್ ಮಾಡುತ್ತೇನೆ.",
+      "callback_taken": "ಸರಿ, ನಿಮ್ಮ ವಿವರಗಳನ್ನು ನೋಟ್ ಮಾಡಿಕೊಂಡಿದ್ದೇನೆ. ನಮ್ಮ ತಂಡ ನಿಮಗೆ ಕರೆ ಮಾಡುತ್ತದೆ.",
+      "am_i_ai": "ಹೌದು, ನಾನು ಮಣ್ಣೊಲಿಯ AI ಸಹಾಯಕಿ. ಬೇಕಿದ್ದರೆ ಒಬ್ಬ ವ್ಯಕ್ತಿಯೊಂದಿಗೆ ಮಾತನಾಡಲು ವ್ಯವಸ್ಥೆ ಮಾಡುತ್ತೇನೆ.",
+      "closing": "ಮಣ್ಣೊಲಿಗೆ ಕರೆ ಮಾಡಿದ್ದಕ್ಕೆ ಧನ್ಯವಾದಗಳು. ಶುಭ ದಿನ!"
+    },
+    "te": {
+      "name": "Telugu",
+      "style": "Polite everyday Telugu; common English words are fine. Use 'meeru' / 'andi'.",
+      "greeting": "నమస్కారం, మణ్ణొలి. నేను మణ్ణొలి AI అసిస్టెంట్ మలర్. ఈ కాల్ నాణ్యత కోసం రికార్డ్ కావచ్చు. మీకు ఎలా సహాయం చేయగలను?",
+      "dont_know": "ఆ వివరం ఇప్పుడు నా దగ్గర లేదండి. మా టీమ్ మీకు తిరిగి కాల్ చేసి చెబుతారు.",
+      "transfer": "ఒక్క నిమిషం, మా టీమ్‌కి కనెక్ట్ చేస్తాను.",
+      "callback_taken": "సరే, మీ వివరాలు నోట్ చేసుకున్నాను. మా టీమ్ మీకు కాల్ చేస్తారు.",
+      "am_i_ai": "అవునండి, నేను మణ్ణొలి AI అసిస్టెంట్‌ని. మీకు కావాలంటే ఒక వ్యక్తితో మాట్లాడేలా ఏర్పాటు చేస్తాను.",
+      "closing": "మణ్ణొలికి కాల్ చేసినందుకు ధన్యవాదాలు. మంచి రోజు!"
+    }
+  }
+}

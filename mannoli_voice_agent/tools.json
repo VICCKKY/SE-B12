@@ -1,0 +1,35 @@
+[
+  {
+    "name": "save_enquiry",
+    "description": "Save a caller's enquiry for the Mannoli team to call back. Use only after reading the details back and the caller has confirmed them.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string", "description": "Caller's name as they said it."},
+        "language": {"type": "string", "enum": ["ta", "en", "hi", "ml", "kn", "te", "other"], "description": "Language the caller spoke, so the team calls back in it."},
+        "enquiry_type": {"type": "string", "enum": ["retail", "bulk_or_gifting", "custom_design", "dealer_or_distribution", "delivery_question", "complaint", "other"]},
+        "products": {"type": "string", "description": "Products or designs they asked about, like 'Ganesha wall plaque'."},
+        "quantity": {"type": "string", "description": "Quantity in digits if given, like '25'. Empty if not known."},
+        "city_or_pincode": {"type": "string", "description": "City, area or 6-digit pincode for delivery."},
+        "callback_time": {"type": "string", "description": "When they want a callback, like 'tomorrow evening'."},
+        "whatsapp_consent": {"type": "boolean", "description": "True only if the caller clearly agreed to WhatsApp messages."},
+        "notes": {"type": "string", "description": "Anything else important, in one short English sentence."}
+      },
+      "required": ["name", "language", "enquiry_type", "products", "whatsapp_consent"]
+    }
+  },
+  {
+    "name": "transfer_call",
+    "description": "Transfer the caller to a Mannoli team member. Usually a built-in tool on the platform; configure the owner's number there.",
+    "parameters": {
+      "type": "object",
+      "properties": {"reason": {"type": "string", "description": "Short reason, like 'asked for a person' or 'complaint'."}},
+      "required": ["reason"]
+    }
+  },
+  {
+    "name": "end_call",
+    "description": "Hang up politely after the closing line. Usually built in on the platform.",
+    "parameters": {"type": "object", "properties": {}}
+  }
+]
