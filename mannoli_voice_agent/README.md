@@ -38,3 +38,10 @@ python simulate_call.py         # rehearse calls in text (uses draft facts)
 Says it is AI and that the call may be recorded (in the greeting). Offers a human. No payment details on call.
 WhatsApp only with clear consent. Inbound only — do not use for cold outbound calls (TRAI/DND).
 `data/enquiries.csv` holds personal data (DPDP Act): keep it private, delete old rows. Not legal advice.
+
+## Live test agent (ElevenLabs)
+- Agent: `Mannoli - Malar (customer service, TEST)`, id `agent_1801m80w14r7f9dsnk7vsy3yqewt`
+- Talk to it: https://elevenlabs.io/app/talk-to?agent_id=agent_1801m80w14r7f9dsnk7vsy3yqewt
+- Female voices: Tamil Janani (default), English Anshika, Hindi Rida M, Malayalam Sunaina, Kannada Kampana, Telugu Madhavi.
+- Language detection is on, so the voice switches when the caller switches language.
+- Test version only: facts are still TO CONFIRM, and save_enquiry and transfer are not connected. Not for real customers yet.
